@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loan Underwriting Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div>
+        <p class="eyebrow">Credit Risk Underwriting</p>
+        <h1>Loan Decision Dashboard</h1>
+      </div>
+      <div class="model-pill">Model: {{ result.model_name if result else "LightGBM" }}</div>
+    </section>
+
+    {% if errors %}
+      <section class="alert">
+        {% for error in errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </section>
+    {% endif %}
+
+    <section class="layout">
+      <form class="panel form-grid" method="post">
+        <label>
+          <span class="field-title">Age <span class="help-dot" title="{{ feature_help.person_age }}">?</span></span>
+          <input type="number" name="person_age" min="18" max="100" value="{{ form_values.person_age }}" required>
+          <span class="field-help">{{ feature_help.person_age }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Annual Income <span class="help-dot" title="{{ feature_help.person_income }}">?</span></span>
+          <input type="number" name="person_income" min="1" step="100" value="{{ form_values.person_income }}" required>
+          <span class="field-help">{{ feature_help.person_income }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Home Ownership <span class="help-dot" title="{{ feature_help.person_home_ownership }}">?</span></span>
+          <select name="person_home_ownership" required>
+            {% for option in field_options.person_home_ownership %}
+              <option value="{{ option }}" {% if form_values.person_home_ownership == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+          <span class="field-help">{{ feature_help.person_home_ownership }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Employment Length <span class="help-dot" title="{{ feature_help.person_emp_length }}">?</span></span>
+          <input type="number" name="person_emp_length" min="0" max="60" step="0.5" value="{{ form_values.person_emp_length }}" required>
+          <span class="field-help">{{ feature_help.person_emp_length }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Loan Intent <span class="help-dot" title="{{ feature_help.loan_intent }}">?</span></span>
+          <select name="loan_intent" required>
+            {% for option in field_options.loan_intent %}
+              <option value="{{ option }}" {% if form_values.loan_intent == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+          <span class="field-help">{{ feature_help.loan_intent }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Loan Grade <span class="help-dot" title="{{ feature_help.loan_grade }}">?</span></span>
+          <select name="loan_grade" required>
+            {% for option in field_options.loan_grade %}
+              <option value="{{ option }}" {% if form_values.loan_grade == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+          <span class="field-help">{{ feature_help.loan_grade }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Loan Amount <span class="help-dot" title="{{ feature_help.loan_amnt }}">?</span></span>
+          <input type="number" name="loan_amnt" min="1" step="100" value="{{ form_values.loan_amnt }}" required>
+          <span class="field-help">{{ feature_help.loan_amnt }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Interest Rate <span class="help-dot" title="{{ feature_help.loan_int_rate }}">?</span></span>
+          <input type="number" name="loan_int_rate" min="0" step="0.01" value="{{ form_values.loan_int_rate }}" required>
+          <span class="field-help">{{ feature_help.loan_int_rate }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Loan Percent Income <span class="help-dot" title="{{ feature_help.loan_percent_income }}">?</span></span>
+          <input type="number" name="loan_percent_income" min="0" max="1" step="0.01" value="{{ form_values.loan_percent_income }}" required>
+          <span class="field-help">{{ feature_help.loan_percent_income }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Prior Default <span class="help-dot" title="{{ feature_help.cb_person_default_on_file }}">?</span></span>
+          <select name="cb_person_default_on_file" required>
+            {% for option in field_options.cb_person_default_on_file %}
+              <option value="{{ option }}" {% if form_values.cb_person_default_on_file == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+          <span class="field-help">{{ feature_help.cb_person_default_on_file }}</span>
+        </label>
+
+        <label>
+          <span class="field-title">Credit History Length <span class="help-dot" title="{{ feature_help.cb_person_cred_hist_length }}">?</span></span>
+          <input type="number" name="cb_person_cred_hist_length" min="0" max="40" value="{{ form_values.cb_person_cred_hist_length }}" required>
+          <span class="field-help">{{ feature_help.cb_person_cred_hist_length }}</span>
+        </label>
+
+        <button type="submit">Score Application</button>
+      </form>
+
+      <aside class="panel result-panel">
+        {% if result %}
+          <p class="eyebrow">Decision</p>
+          <div class="decision {{ result.risk_band }}">{{ result.decision }}</div>
+          <div class="score">{{ "%.2f"|format(result.risk_percent) }}%</div>
+          <p class="score-label">Predicted default risk</p>
+
+          <div class="meter">
+            <span style="width: {{ "%.2f"|format(result.risk_percent) }}%"></span>
+          </div>
+
+          {% if result.reasons %}
+            <h2>Top Rejection Reasons</h2>
+            <ol class="reasons">
+              {% for reason in result.reasons %}
+                <li>{{ reason }}</li>
+              {% endfor %}
+            </ol>
+          {% else %}
+            <p class="muted">No rejection reasons generated because this applicant is not above the high-risk threshold.</p>
+          {% endif %}
+        {% else %}
+          <p class="eyebrow">Ready</p>
+          <h2>Enter applicant details</h2>
+          <p class="muted">Submit the form to see risk score, underwriting decision, and SHAP-based rejection reason candidates.</p>
+        {% endif %}
+      </aside>
+    </section>
+
+    <section class="panel benchmark">
+      <div>
+        <p class="eyebrow">Benchmark</p>
+        <h2>Model Performance</h2>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>PR-AUC</th>
+            <th>ROC-AUC</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in benchmark_results %}
+            <tr>
+              <td>{{ row.model }}</td>
+              <td>{{ row["PR-AUC"] }}</td>
+              <td>{{ row["ROC-AUC"] }}</td>
+              <td>{{ row.precision }}</td>
+              <td>{{ row.recall }}</td>
+              <td>{{ row.f1 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
